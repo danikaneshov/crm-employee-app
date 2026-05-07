@@ -2,7 +2,6 @@
   "name": "Unitu Client",
   "short_name": "Unitu",
   "description": "Unitu — Client",
-  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
