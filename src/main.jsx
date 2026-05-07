@@ -19,6 +19,10 @@ async function configureTenantStartUrlInManifest() {
   const targetSlug = currentSlug || savedSlug
   const startUrl = targetSlug ? `/${targetSlug}` : '/'
 
+  if (currentSlug) {
+    window.localStorage.setItem(LAST_COMPANY_SLUG_KEY, currentSlug)
+  }
+
   try {
     const response = await fetch(MANIFEST_PATH, { cache: 'no-store' })
 

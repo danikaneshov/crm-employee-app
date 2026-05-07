@@ -545,7 +545,15 @@ const EmployeeApp = () => {
       {/* ШАПКА */}
       <div className="bg-white p-6 pt-safe border-b flex justify-between items-center z-10 relative">
         <div><p className="text-xs text-gray-400 uppercase font-bold">Сотрудник</p><h1 className="text-xl font-bold text-gray-800">{employee.name}</h1></div>
-        <button onClick={() => {setEmployee(null); localStorage.clear();}} className="p-2 text-gray-300 hover:text-red-500"><LogOut/></button>
+        <button
+          onClick={() => {
+            setEmployee(null);
+            localStorage.removeItem('currentEmployee');
+          }}
+          className="p-2 text-gray-300 hover:text-red-500"
+        >
+          <LogOut/>
+        </button>
       </div>
 
       <div className="flex-1 p-6 flex flex-col relative overflow-y-auto overscroll-contain">
