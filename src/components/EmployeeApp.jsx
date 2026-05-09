@@ -91,7 +91,13 @@ const EmployeeApp = () => {
     });
 
     const unsubEmp = onSnapshot(query(collection(db, 'employees'), where('outletId', '==', employee.outletId)), (snap) => {
-      setEmployeesList(snap.docs.map(empDoc => ({ id: empDoc.id, ...empDoc.data() })));
+      const emps = snap.docs.map(empDoc => ({ id: empDoc.id, ...empDoc.data() }));
+      setEmployeesList(emps);
+      // Validate that cached employee still exists in DB
+      if (!emps.find(e => e.id === employee.id)) {
+        setEmployee(null);
+        localStorage.removeItem('currentEmployee');
+      }
     });
 
     const d = new Date();
@@ -227,7 +233,7 @@ const EmployeeApp = () => {
   const closeShiftInDb = async (c1, c2, imageUrl) => {
     let myEarned;
     let myTotalItems;
-    const myBase = employee.customBaseSalary ? employee.customBaseSalary : outletSettings.baseSalary;
+    const myBase = employee.customBaseSalary != null ? employee.customBaseSalary : outletSettings.baseSalary;
     const ic = employee.customItemCommission ?? outletSettings.itemCommission;
 
     let ownerC1 = c1, ownerC2 = c2;
@@ -236,7 +242,7 @@ const EmployeeApp = () => {
     if (partnerId) {
       const partner = employeesList.find(emp => emp.id === partnerId);
       if (!partner) { throw new Error('Напарник не найден в списке сотрудников'); }
-      const partnerBase = partner.customBaseSalary ? partner.customBaseSalary : outletSettings.partnerBaseSalary;
+      const partnerBase = partner.customBaseSalary != null ? partner.customBaseSalary : outletSettings.partnerBaseSalary;
       const partnerCommission = partner.customItemCommission ?? outletSettings.partnerItemCommission;
       
       const targetOwnerTotal = Math.ceil((c1 + c2) / 2);
