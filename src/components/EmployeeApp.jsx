@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatMoney } from '../utils/formatMoney';
-import { LogOut, Camera, Loader2, CheckCircle2, UserPlus, PlayCircle, AlertCircle, XCircle, Clock, Banknote, CalendarDays, Flame, Minus, Plus } from 'lucide-react';
+import { LogOut, Camera, Loader2, CheckCircle2, UserPlus, PlayCircle, AlertCircle, XCircle, Clock, Banknote, CalendarDays, Flame, Minus, Plus, KeyRound, Unplug } from 'lucide-react';
 import heic2any from 'heic2any';
 import imageCompression from 'browser-image-compression';
 import { Button } from './ui/Button';
@@ -13,6 +12,7 @@ import { Badge } from './ui/Badge';
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dl5vgfkvr/image/upload';
 const UPLOAD_PRESET = 'ml_default';
 
+const BOUND_OUTLET_KEY = 'boundOutlet'; // { id, name, connectCode }
 
 
 const EmployeeApp = () => {
@@ -30,22 +30,15 @@ const EmployeeApp = () => {
   });
   const [partnerId, setPartnerId] = useState('');
 
-  const { company_slug } = useParams();
-  const [boundOutletId, setBoundOutletId] = useState(null);
-  const [isSlugLoading, setIsSlugLoading] = useState(true);
-
-  useEffect(() => {
-    if (!company_slug) return;
-    const fetchOutlet = async () => {
-      const q = query(collection(db, 'outlets'), where('slug', '==', company_slug));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        setBoundOutletId(snap.docs[0].id);
-      }
-      setIsSlugLoading(false);
-    };
-    fetchOutlet();
-  }, [company_slug]);
+  // Connect-code based outlet binding (replaces slug-based routing)
+  const [boundOutlet, setBoundOutlet] = useState(() => {
+    const saved = localStorage.getItem(BOUND_OUTLET_KEY);
+    return saved ? JSON.parse(saved) : null;
+  });
+  const boundOutletId = boundOutlet?.id || null;
+  const [connectCode, setConnectCode] = useState('');
+  const [connectError, setConnectError] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   
   const [currentShift, setCurrentShift] = useState(null);
@@ -387,17 +380,78 @@ const EmployeeApp = () => {
   };
 
   
-  if (isSlugLoading) {
-    return <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  }
+  const handleConnect = async () => {
+    const code = connectCode.trim().toUpperCase();
+    if (code.length < 4) return;
+    setIsConnecting(true);
+    setConnectError('');
+    try {
+      const q = query(collection(db, 'outlets'), where('connectCode', '==', code));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const outletDoc = snap.docs[0];
+        const outletData = { id: outletDoc.id, name: outletDoc.data().name, connectCode: code };
+        setBoundOutlet(outletData);
+        localStorage.setItem(BOUND_OUTLET_KEY, JSON.stringify(outletData));
+        setConnectCode('');
+      } else {
+        setConnectError('Неверный ключ подключения');
+      }
+    } catch {
+      setConnectError('Ошибка соединения с БД');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    if (!window.confirm('Отключиться от точки? Потребуется повторный ввод ключа.')) return;
+    setBoundOutlet(null);
+    setEmployee(null);
+    localStorage.removeItem(BOUND_OUTLET_KEY);
+    localStorage.removeItem('currentEmployee');
+  };
 
   if (!boundOutletId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-sm">
-          <h1 className="text-2xl font-black text-slate-800 mb-2">Точка не найдена</h1>
-          <p className="text-slate-500 mb-6 text-sm">Компания с адресом "/{company_slug}" не существует. Проверьте правильность ссылки.</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50 flex flex-col items-center justify-center p-4">
+        <Card variant="elevated" className="w-full max-w-sm p-8 flex flex-col items-center border-0 shadow-2xl">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Unitu<span className="text-primary">.</span></h1>
+            <p className="text-slate-400 text-sm mt-2 font-medium">Подключение к точке</p>
+          </div>
+
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-200">
+            <KeyRound className="text-white" size={28} />
+          </div>
+
+          <p className="text-slate-500 text-sm text-center mb-6">Введите ключ подключения, полученный от администратора</p>
+
+          {connectError && (
+            <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl text-center font-bold">
+              {connectError}
+            </div>
+          )}
+
+          <input
+            type="text"
+            value={connectCode}
+            onChange={e => setConnectCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+            onKeyDown={e => { if (e.key === 'Enter') handleConnect(); }}
+            placeholder="XXXXXX"
+            maxLength={6}
+            className="w-full text-center text-2xl font-mono font-black tracking-[0.4em] py-4 px-6 bg-slate-50 rounded-2xl border-2 border-slate-200 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all text-slate-800 placeholder-slate-300"
+            autoFocus
+          />
+
+          <Button
+            onClick={handleConnect}
+            disabled={connectCode.trim().length < 4 || isConnecting}
+            className="w-full mt-6"
+          >
+            {isConnecting ? <Loader2 className="animate-spin" size={20} /> : 'Подключить'}
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -550,16 +604,29 @@ const EmployeeApp = () => {
 
       {/* ШАПКА */}
       <div className="bg-white p-6 pt-safe border-b flex justify-between items-center z-10 relative">
-        <div><p className="text-xs text-gray-400 uppercase font-bold">Сотрудник</p><h1 className="text-xl font-bold text-gray-800">{employee.name}</h1></div>
-        <button
-          onClick={() => {
-            setEmployee(null);
-            localStorage.removeItem('currentEmployee');
-          }}
-          className="p-2 text-gray-300 hover:text-red-500"
-        >
-          <LogOut/>
-        </button>
+        <div>
+          <p className="text-xs text-gray-400 uppercase font-bold">{boundOutlet?.name || 'Точка'}</p>
+          <h1 className="text-xl font-bold text-gray-800">{employee.name}</h1>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleDisconnect}
+            className="p-2 text-gray-300 hover:text-amber-500 transition-colors"
+            title="Отключиться от точки"
+          >
+            <Unplug size={20}/>
+          </button>
+          <button
+            onClick={() => {
+              setEmployee(null);
+              localStorage.removeItem('currentEmployee');
+            }}
+            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+            title="Выйти"
+          >
+            <LogOut/>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 p-6 flex flex-col relative overflow-y-auto overscroll-contain">
