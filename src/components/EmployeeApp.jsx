@@ -468,6 +468,12 @@ const EmployeeApp = () => {
           <div className="mb-10 text-center">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Unitu<span className="text-primary">.</span></h1>
             <p className="text-slate-400 dark:text-slate-500 text-sm mt-2 font-medium">Введите ваш PIN-код</p>
+            <button
+              onClick={handleDisconnect}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full hover:bg-amber-100 transition-colors"
+            >
+              <Unplug size={12}/> {boundOutlet?.name || 'Точка'}
+            </button>
           </div>
           
           <div className="flex gap-4 mb-10">
